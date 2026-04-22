@@ -19,7 +19,7 @@ CORS(
     resources={
         r"/*": {
             "origins": [
-                "https://.*\.lovable\.app",
+                r"https://.*\.lovable\.app",
                 "http://localhost:5173",
                 "http://localhost:8080",
                 "https://trackademic-fd.vercel.app"
@@ -29,6 +29,17 @@ CORS(
 )
 # CORS(app)
 mongo=PyMongo(app)
+
+# from dotenv import load_dotenv            // add these line only when running locally
+# load_dotenv(dotenv_path=".env")   # explicitly load
+
+import os
+import cloudinary
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 
 @app.route('/')
 def home():
