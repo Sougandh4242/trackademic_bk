@@ -365,7 +365,7 @@ def top_students_all():
     return jsonify(result)
 
 #AI integration part
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer
 import numpy as np
 
 # model = SentenceTransformer('all-mpnet-base-v2') # more accurate but heavier, can switch to smaller one for faster performance , can deploy this on render
@@ -375,13 +375,17 @@ import numpy as np
 # model = SentenceTransformer('all-MiniLM-L6-v2')  ❌
 
 # ADD this instead:
-_sentence_model = None
+# _sentence_model = None
 
-def get_sentence_model():
-    global _sentence_model
-    if _sentence_model is None:
-        _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-    return _sentence_model
+# def get_sentence_model():
+#     global _sentence_model
+#     if _sentence_model is None:
+#         _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+#     return _sentence_model
+
+from fastembed import TextEmbedding
+model = TextEmbedding("BAAI/bge-small-en-v1.5")
+
 
 
 def build_student_text(profile):
@@ -419,7 +423,7 @@ def update_embedding(user_id):
 
     text = build_student_text(profile)
 
-    embedding = get_sentence_model().encode(text).tolist()
+    embedding = list(model.embed([text]))[0].tolist()
 
     mongo.db.profiles.update_one(
         {"user_id": user_id},
@@ -430,7 +434,7 @@ def update_embedding(user_id):
 def semantic_search():
     query = request.args.get("q")
 
-    query_embedding = get_sentence_model().encode(query)
+    query_embedding = list(model.embed([query]))[0].tolist()
 
     profiles = list(mongo.db.profiles.find())
 
@@ -574,7 +578,7 @@ def chat(current_user):
     # =========================
     if any(word in query_lower for word in ["student", "skills", "project", "internship"]):
 
-        query_embedding = get_sentence_model().encode(query)
+        query_embedding = list(model.embed([query]))[0].tolist()
 
         profiles = list(mongo.db.profiles.find())
 
