@@ -366,7 +366,7 @@ def top_students_all():
 
 #AI integration part
 # from sentence_transformers import SentenceTransformer
-import numpy as np
+# import numpy as np
 
 # model = SentenceTransformer('all-mpnet-base-v2') # more accurate but heavier, can switch to smaller one for faster performance , can deploy this on render
 # model = SentenceTransformer('all-MiniLM-L6-v2')  # smaller and faster
@@ -383,8 +383,8 @@ import numpy as np
 #         _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
 #     return _sentence_model
 
-from fastembed import TextEmbedding
-model = TextEmbedding("BAAI/bge-small-en-v1.5")
+# from fastembed import TextEmbedding
+# model = TextEmbedding("BAAI/bge-small-en-v1.5")
 
 
 
@@ -419,55 +419,22 @@ def build_student_text(profile):
     return text
 
 def update_embedding(user_id):
-    profile = mongo.db.profiles.find_one({"user_id": user_id})
-
-    text = build_student_text(profile)
-
-    embedding = list(model.embed([text]))[0].tolist()
-
-    mongo.db.profiles.update_one(
-        {"user_id": user_id},
-        {"$set": {"embedding": embedding}}
-    )
+    pass  # not needed in deployment
 
 @app.route("/semantic-search", methods=["GET"])
 def semantic_search():
     query = request.args.get("q")
-
-    query_embedding = list(model.embed([query]))[0].tolist()
-
-    profiles = list(mongo.db.profiles.find())
-
+    profiles = list(mongo.db.profiles.find({
+        "skills.name": {"$regex": query, "$options": "i"}
+    }))
     results = []
-
     for profile in profiles:
-        student_embedding = profile.get("embedding")
-
-        if not student_embedding:
-            continue
-
-        student_embedding = np.array(student_embedding)
-
-        similarity = np.dot(query_embedding, student_embedding) / (
-            np.linalg.norm(query_embedding) * np.linalg.norm(student_embedding)
-        )
-
-        user = mongo.db.users.find_one({
-            "_id": ObjectId(profile["user_id"])
-        })
-
+        user = mongo.db.users.find_one({"_id": ObjectId(profile["user_id"])})
         results.append({
             "name": user["name"],
             "usn": user.get("usn"),
-            "score": profile.get("score"),
-            "similarity": float(similarity)
+            "score": profile.get("score")
         })
-        print("Query:", query)
-        # print("Student:", student_text)
-        print("Similarity:", similarity)
-
-    results.sort(key=lambda x: x["similarity"], reverse=True)
-
     return jsonify(results[:5])
 
 @app.route("/generate-embeddings")
@@ -578,41 +545,13 @@ def chat(current_user):
     # =========================
     if any(word in query_lower for word in ["student", "skills", "project", "internship"]):
 
-        query_embedding = list(model.embed([query]))[0].tolist()
-
-        profiles = list(mongo.db.profiles.find())
-
-        results = []
-
-        for profile in profiles:
-            student_embedding = profile.get("embedding")
-            if not student_embedding:
-                continue
-
-            student_embedding = np.array(student_embedding)
-
-            similarity = np.dot(query_embedding, student_embedding) / (
-                np.linalg.norm(query_embedding) * np.linalg.norm(student_embedding)
-            )
-
-            user = mongo.db.users.find_one({
-                "_id": ObjectId(profile["user_id"])
-            })
-
-            results.append({
-                "name": user["name"],
-                "score": profile.get("score"),
-                "similarity": float(similarity)
-            })
-
-        results.sort(key=lambda x: x["similarity"], reverse=True)
-
-        top_results = results[:3]
-
+        profiles = list(mongo.db.profiles.find({
+            "skills.name": {"$regex": query, "$options": "i"}
+        }))
         response = "🤖 Relevant students:\n"
-        for r in top_results:
-            response += f"- {r['name']} (Score: {r['score']})\n"
-
+        for p in profiles[:3]:
+            user = mongo.db.users.find_one({"_id": ObjectId(p["user_id"])})
+            response += f"- {user['name']} (Score: {p.get('score')})\n"
         return jsonify({"reply": response})
 
     # =========================
