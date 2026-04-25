@@ -87,7 +87,7 @@ def register():
 
     token = jwt.encode(
         {"email": email, "role": role},
-        "SECRET_KEY",
+        os.getenv("SECRET_KEY"),
         algorithm="HS256"
     )
 
@@ -369,7 +369,20 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 
 # model = SentenceTransformer('all-mpnet-base-v2') # more accurate but heavier, can switch to smaller one for faster performance , can deploy this on render
-model = SentenceTransformer('all-MiniLM-L6-v2')  # smaller and faster
+# model = SentenceTransformer('all-MiniLM-L6-v2')  # smaller and faster
+
+# REMOVE this from the top level:
+# model = SentenceTransformer('all-MiniLM-L6-v2')  ❌
+
+# ADD this instead:
+_sentence_model = None
+
+def get_sentence_model():
+    global _sentence_model
+    if _sentence_model is None:
+        _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _sentence_model
+
 
 def build_student_text(profile):
     skills = ", ".join([s["name"] for s in profile.get("skills", [])])
@@ -406,7 +419,7 @@ def update_embedding(user_id):
 
     text = build_student_text(profile)
 
-    embedding = model.encode(text).tolist()
+    embedding = get_sentence_model().encode(text).tolist()
 
     mongo.db.profiles.update_one(
         {"user_id": user_id},
@@ -417,7 +430,7 @@ def update_embedding(user_id):
 def semantic_search():
     query = request.args.get("q")
 
-    query_embedding = model.encode(query)
+    query_embedding = get_sentence_model().encode(query)
 
     profiles = list(mongo.db.profiles.find())
 
@@ -561,7 +574,7 @@ def chat(current_user):
     # =========================
     if any(word in query_lower for word in ["student", "skills", "project", "internship"]):
 
-        query_embedding = model.encode(query)
+        query_embedding = get_sentence_model().encode(query)
 
         profiles = list(mongo.db.profiles.find())
 
