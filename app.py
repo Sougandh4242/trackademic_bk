@@ -368,7 +368,8 @@ def top_students_all():
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-model = SentenceTransformer('all-mpnet-base-v2')
+# model = SentenceTransformer('all-mpnet-base-v2') # more accurate but heavier, can switch to smaller one for faster performance , can deploy this on render
+model = SentenceTransformer('all-MiniLM-L6-v2')  # smaller and faster
 
 def build_student_text(profile):
     skills = ", ".join([s["name"] for s in profile.get("skills", [])])
