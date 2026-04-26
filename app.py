@@ -424,27 +424,32 @@ def update_embedding(user_id):
 @app.route("/semantic-search", methods=["GET"])
 def semantic_search():
     query = request.args.get("q")
+    
     profiles = list(mongo.db.profiles.find({
-        "skills.name": {"$regex": query, "$options": "i"}
+        "$or": [
+            {"skills.name": {"$regex": query, "$options": "i"}},
+            {"headline": {"$regex": query, "$options": "i"}},
+            {"bio": {"$regex": query, "$options": "i"}}
+        ]
     }))
+
+    if not profiles:
+        return jsonify([])
+
     results = []
     for profile in profiles:
         user = mongo.db.users.find_one({"_id": ObjectId(profile["user_id"])})
+        if not user:
+            continue
         results.append({
             "name": user["name"],
             "usn": user.get("usn"),
             "score": profile.get("score")
         })
+
     return jsonify(results[:5])
 
-@app.route("/generate-embeddings")
-def generate_embeddings():
-    profiles = list(mongo.db.profiles.find())
 
-    for p in profiles:
-        update_embedding(p["user_id"])
-
-    return "Embeddings generated"
 
 @app.route("/add-skill", methods=["POST"])
 @token_required
@@ -541,17 +546,28 @@ def chat(current_user):
         return jsonify({"reply": response})
 
     # =========================
-    # 🔥 INTENT: DB SEARCH (semantic)
+    # 🔥 INTENT: DB SEARCH (regex)
     # =========================
     if any(word in query_lower for word in ["student", "skills", "project", "internship"]):
 
         profiles = list(mongo.db.profiles.find({
-            "skills.name": {"$regex": query, "$options": "i"}
+            "$or": [
+                {"skills.name": {"$regex": query, "$options": "i"}},
+                {"headline": {"$regex": query, "$options": "i"}},
+                {"bio": {"$regex": query, "$options": "i"}}
+            ]
         }))
+
+        if not profiles:
+            return jsonify({"reply": "No matching students found."})
+
         response = "🤖 Relevant students:\n"
         for p in profiles[:3]:
             user = mongo.db.users.find_one({"_id": ObjectId(p["user_id"])})
+            if not user:
+                continue
             response += f"- {user['name']} (Score: {p.get('score')})\n"
+
         return jsonify({"reply": response})
 
     # =========================
