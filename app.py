@@ -66,6 +66,12 @@ def register():
 
     if role == "student" and not usn:
         return jsonify({"error": "USN is required for students"}), 400
+    
+    FACULTY_SECRET_CODE = os.getenv("FACULTY_SECRET_CODE")
+    if role == "faculty":
+        faculty_code = data.get("faculty_code")
+        if faculty_code != FACULTY_SECRET_CODE:
+            return jsonify({"error": "Invalid faculty access code"}), 403
 
     # Check existing user
     if mongo.db.users.find_one({"email": email}):
